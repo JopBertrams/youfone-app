@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
             border: const OutlineInputBorder(borderSide: BorderSide.none),
           )),
       home: FutureBuilder(
-        future: _checkLoginStatus(),
+        future: checkForUserCredentials(),
         builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             // TODO: Add a loading screen
@@ -58,9 +58,9 @@ class MyApp extends StatelessWidget {
     );
   }
 
-  Future<bool> _checkLoginStatus() async {
+  Future<bool> checkForUserCredentials() async {
     // Check if the user is already logged in.
-    String? token = await _storage.read(key: 'token');
-    return token != null;
+    String? username = await _storage.read(key: 'username');
+    return username != null;
   }
 }

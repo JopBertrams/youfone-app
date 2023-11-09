@@ -126,10 +126,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                         opacity: value,
                                         child: const Align(
                                             alignment: AlignmentDirectional.centerStart,
-                                            child: Text(
-                                              "E-mail of wachtwoord is onjuist",
-                                              style: TextStyle(color: Colors.red, fontSize: 14),
-                                            )),
+                                            child: Row(children: [
+                                              Icon(Icons.error_rounded, color: Colors.red),
+                                              SizedBox(width: 5),
+                                              Text(
+                                                "E-mail of wachtwoord is onjuist",
+                                                style: TextStyle(color: Colors.red, fontSize: 14),
+                                              )
+                                            ])),
                                       )),
                                 ),
                               ),
