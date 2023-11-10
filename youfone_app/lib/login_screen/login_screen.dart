@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../loading_screen/youfone_login.dart';
 import './widgets/email_field.dart';
-import 'widgets/login_button.dart';
+import './widgets/login_button.dart';
 import '../loading_screen/loading_screen.dart';
+import '../dashboard_screen/dashboard_screen.dart';
 import './widgets/password_field.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -15,11 +16,12 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   late TextEditingController emailController;
   late TextEditingController passwordController;
-  double _elementsOpacity = 1;
+  double elementsOpacity = 1;
+  double loadingBallSize = 1;
   bool showLoadingScreen = false;
   bool showEmailError = false;
   bool showLoginError = false;
-  double loadingBallSize = 1;
+
   @override
   void initState() {
     emailController = TextEditingController();
@@ -46,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 70),
                       TweenAnimationBuilder<double>(
                         duration: const Duration(milliseconds: 300),
-                        tween: Tween(begin: 1, end: _elementsOpacity),
+                        tween: Tween(begin: 1, end: elementsOpacity),
                         builder: (_, value, __) => Opacity(
                           opacity: value,
                           child: Column(
@@ -83,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Column(
                           children: [
                             EmailField(
-                              fadeEmail: _elementsOpacity == 0,
+                              fadeEmail: elementsOpacity == 0,
                               emailController: emailController,
                               emailInvalid: showLoginError,
                               onEmailTyping: handleEmailTyping,
@@ -94,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 duration: const Duration(milliseconds: 300),
                                 padding: const EdgeInsets.only(top: 10),
                                 child: TweenAnimationBuilder<double>(
-                                  tween: Tween(begin: 0, end: _elementsOpacity),
+                                  tween: Tween(begin: 0, end: elementsOpacity),
                                   duration: const Duration(milliseconds: 300),
                                   builder: ((context, value, child) => Opacity(
                                         opacity: value,
@@ -109,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             const SizedBox(height: 40),
                             PasswordField(
-                              fadePassword: _elementsOpacity == 0,
+                              fadePassword: elementsOpacity == 0,
                               passwordController: passwordController,
                               passwordInvalid: showLoginError,
                             ),
@@ -120,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 duration: const Duration(milliseconds: 300),
                                 padding: const EdgeInsets.only(top: 10),
                                 child: TweenAnimationBuilder<double>(
-                                  tween: Tween(begin: 0, end: _elementsOpacity),
+                                  tween: Tween(begin: 0, end: elementsOpacity),
                                   duration: const Duration(milliseconds: 300),
                                   builder: ((context, value, child) => Opacity(
                                         opacity: value,
@@ -139,25 +141,42 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             const SizedBox(height: 60),
                             LoginButton(
-                                elementsOpacity: _elementsOpacity,
+                                elementsOpacity: elementsOpacity,
                                 onTap: () {
-                                  setState(() {
+                                  setState(() async {
                                     if (!isEmailValid()) {
                                       showEmailError = true;
                                     } else {
-                                      _elementsOpacity = 0;
-                                      Future.delayed(const Duration(milliseconds: 300), () {
+                                      elementsOpacity = 0;
+                                      await Future.delayed(const Duration(milliseconds: 300), () {
                                         setState(() {
                                           showLoadingScreen = true;
                                         });
-                                        tryLogin();
+                                        tryLogin().then((result) {
+                                          if (result['loginSuccessful'] == true) {
+                                            getYoufoneData(result['responseBody']).then((result) {
+                                              Navigator.pushAndRemoveUntil(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          const DashboardScreen()),
+                                                  (route) => false);
+                                            });
+                                          } else {
+                                            setState(() {
+                                              showLoginError = true;
+                                              elementsOpacity = 1;
+                                              showLoadingScreen = false;
+                                            });
+                                          }
+                                        });
                                       });
                                     }
                                   });
                                 }),
                             const SizedBox(height: 20),
                             TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 1, end: _elementsOpacity),
+                              tween: Tween(begin: 1, end: elementsOpacity),
                               duration: const Duration(milliseconds: 300),
                               builder: (_, value, __) => Opacity(
                                 opacity: value,
@@ -187,6 +206,17 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Future<Map<String, dynamic>> tryLogin() async {
+    return await youfoneLogin(emailController.text, passwordController.text);
+  }
+
+  Future<Map<String, dynamic>> getYoufoneData(Map<String, dynamic> loginResponseBody) {
+    // TODO: Retrieve data from Youfone API and show the dashboard screen.
+    return Future.delayed(const Duration(seconds: 1), () {
+      return {'loginSuccessful': true};
+    });
+  }
+
   bool isEmailValid() {
     String email = emailController.text;
     return RegExp(
@@ -198,20 +228,5 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       showEmailError = showError;
     });
-  }
-
-  Future<void> tryLogin() async {
-    bool loginSuccessful = await youfoneLogin(emailController.text, passwordController.text);
-
-    if (loginSuccessful) {
-      // TODO: Navigate to the home screen
-    } else {
-      setState(() {
-        showEmailError = false;
-        showLoginError = true;
-        _elementsOpacity = 1;
-        showLoadingScreen = false;
-      });
-    }
   }
 }

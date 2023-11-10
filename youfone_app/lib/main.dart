@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import './login_screen/login_screen.dart';
+import './loading_screen/loading_screen.dart';
+import './loading_screen/youfone_data.dart';
+import './loading_screen/youfone_login.dart';
+import './dashboard_screen/dashboard_screen.dart';
 import 'styles/colors.dart';
 
 void main() {
@@ -31,23 +35,13 @@ class MyApp extends StatelessWidget {
           )),
       home: FutureBuilder(
         future: checkForUserCredentials(),
-        builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+        builder: (BuildContext context, AsyncSnapshot<Map<String, dynamic>> snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            // TODO: Add a loading screen
-            return const CircularProgressIndicator();
+            return const LoadingScreen();
           } else {
-            if (snapshot.data == true) {
+            if (snapshot.hasData && snapshot.data!['loginSuccessful'] == true) {
               // User has already logged in, show the dashboard
-              // TODO: Add the dashboard screen
-              return const Scaffold(
-                body: Center(
-                  child: Text(
-                    "Dashboard",
-                    style:
-                        TextStyle(color: youfoneColor, fontSize: 30, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              );
+              return const DashboardScreen();
             } else {
               // User has not logged in, show the login screen
               return const LoginScreen();
@@ -58,9 +52,30 @@ class MyApp extends StatelessWidget {
     );
   }
 
-  Future<bool> checkForUserCredentials() async {
-    // Check if the user is already logged in.
+  Future<Map<String, dynamic>> checkForUserCredentials() async {
     String? username = await _storage.read(key: 'username');
-    return username != null;
+
+    if (username == null) {
+      // User has not logged in before, show the login screen.
+      return {'loginSuccessful': false};
+    }
+
+    bool keyExpired = await securitykeyExpired();
+
+    if (!keyExpired) {
+      // TODO: Retrieve data from Youfone API and show the dashboard screen.
+      return {'loginSuccessful': true};
+    }
+
+    Map<String, dynamic> loginResult = await youfoneLoginFromSecureStorage();
+
+    if (loginResult['loginSuccessful'] == false) {
+      // Login was not successful, show the login screen.
+      // TODO: Show a message to the user that the login was not successful. (Snackbar)
+      return {'loginSuccessful': false};
+    }
+
+    // TODO: Retrieve data from Youfone API and show the dashboard screen.
+    return {'loginSuccessful': true};
   }
 }
