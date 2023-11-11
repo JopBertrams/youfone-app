@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import './storage.dart';
+import './models/data.dart';
 import './login_screen/login_screen.dart';
 import './loading_screen/loading_screen.dart';
 import './loading_screen/youfone_data.dart';
@@ -14,8 +15,6 @@ void main() {
 // TODO: Add localization support for English and Dutch
 
 class MyApp extends StatelessWidget {
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
-
   const MyApp({super.key});
 
   @override
@@ -23,59 +22,62 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Youfone',
-      theme: ThemeData(
-          primarySwatch: youfoneMaterialColor,
-          textSelectionTheme: const TextSelectionThemeData(
-            cursorColor: youfoneColor,
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-            hintStyle: TextStyle(color: Colors.black.withOpacity(0.7)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            border: const OutlineInputBorder(borderSide: BorderSide.none),
-          )),
-      home: FutureBuilder(
-        future: checkForUserCredentials(),
-        builder: (BuildContext context, AsyncSnapshot<Map<String, dynamic>> snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const LoadingScreen();
-          } else {
-            if (snapshot.hasData && snapshot.data!['loginSuccessful'] == true) {
-              // User has already logged in, show the dashboard
-              return const DashboardScreen();
-            } else {
-              // User has not logged in, show the login screen
-              return const LoginScreen();
-            }
-          }
-        },
+      theme: _buildThemeData(),
+      home: _buildHome(),
+    );
+  }
+
+  ThemeData _buildThemeData() {
+    return ThemeData(
+      primarySwatch: youfoneMaterialColor,
+      textSelectionTheme: const TextSelectionThemeData(
+        cursorColor: youfoneColor,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        hintStyle: TextStyle(color: Colors.black.withOpacity(0.7)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        border: const OutlineInputBorder(borderSide: BorderSide.none),
       ),
     );
   }
 
-  Future<Map<String, dynamic>> checkForUserCredentials() async {
-    String? username = await _storage.read(key: 'username');
+  Widget _buildHome() {
+    return FutureBuilder(
+      future: _getLoginStatusAndData(),
+      builder: (BuildContext context, AsyncSnapshot<Data?> snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const LoadingScreen();
+        } else {
+          return snapshot.data == null
+              ? const LoginScreen()
+              : DashboardScreen(youfoneData: snapshot.data!);
+        }
+      },
+    );
+  }
 
+  Future<Data?> _getLoginStatusAndData() async {
+    //await storageDeleteAll();
+    String? username = await storageRead(key: 'username');
     if (username == null) {
       // User has not logged in before, show the login screen.
-      return {'loginSuccessful': false};
+      return null;
     }
 
     bool keyExpired = await securitykeyExpired();
-
     if (!keyExpired) {
-      // TODO: Retrieve data from Youfone API and show the dashboard screen.
-      return {'loginSuccessful': true};
+      return await getYoufoneData();
     }
 
-    Map<String, dynamic> loginResult = await youfoneLoginFromSecureStorage();
-
-    if (loginResult['loginSuccessful'] == false) {
-      // Login was not successful, show the login screen.
+    bool loginSuccessful = await youfoneLoginFromSecureStorage();
+    if (!loginSuccessful) {
+      // Login was not successful, remove credentials from secure storage and show the login screen.
       // TODO: Show a message to the user that the login was not successful. (Snackbar)
-      return {'loginSuccessful': false};
+      await storageDelete(key: 'username');
+      await storageDelete(key: 'password');
+      return null;
     }
 
-    // TODO: Retrieve data from Youfone API and show the dashboard screen.
-    return {'loginSuccessful': true};
+    return await getYoufoneData();
   }
 }

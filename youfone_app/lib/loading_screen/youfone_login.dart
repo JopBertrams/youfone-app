@@ -1,23 +1,22 @@
 import 'dart:convert';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../storage.dart';
 import 'package:http/http.dart' as http;
 
 // TODO: Change URL to real Youfone login API URL.
 // For testing purposes a mock API is used, to prevent IP blocking.
 Uri youfoneLoginUrl = Uri.parse('http://192.168.1.149:3000/login');
 
-Future<Map<String, dynamic>> youfoneLogin(String username, String password) async {
+Future<bool> youfoneLogin(String username, String password) async {
   final response = await httpResponse(httpRequestBody(username, password), youfoneLoginUrl);
   return processLoginResponse(response, username, password);
 }
 
-Future<Map<String, dynamic>> youfoneLoginFromSecureStorage() async {
-  const storage = FlutterSecureStorage();
-  String? username = await storage.read(key: 'username');
-  String? password = await storage.read(key: 'password');
+Future<bool> youfoneLoginFromSecureStorage() async {
+  String? username = await storageRead(key: 'username');
+  String? password = await storageRead(key: 'password');
 
   if (username == null || password == null) {
-    return {'loginSuccessful': false}; // Indicate an unsuccessful login.
+    return false;
   }
 
   final response = await httpResponse(httpRequestBody(username, password), youfoneLoginUrl);
@@ -47,38 +46,31 @@ Future<http.Response> httpResponse(Map<String, dynamic> requestBody, Uri loginUr
   );
 }
 
-Future<Map<String, dynamic>> processLoginResponse(
-    http.Response response, String username, String password) async {
+Future<bool> processLoginResponse(http.Response response, String username, String password) async {
   final responseBody = jsonDecode(response.body);
   bool loginSuccessful = false;
 
   if (responseBody is Map<String, dynamic> && responseBody.containsKey('ResultCode')) {
     if (responseBody['ResultCode'] == 0) {
       // Save credentials and security key.
-      await saveCredentialsToSecureStorage(username, password);
       String securitykey = response.headers['securitykey']!;
-      await saveSecurityKeyToSecureStorage(securitykey);
+      await saveToSecureStorage(username, password, response.body, securitykey);
       loginSuccessful = true; // Indicate a successful login.
     }
   }
 
-  return {
-    'loginSuccessful': loginSuccessful,
-    'responseBody': responseBody,
-  };
+  return loginSuccessful;
 }
 
-Future<void> saveCredentialsToSecureStorage(String username, String password) async {
-  const storage = FlutterSecureStorage();
-
-  await storage.write(key: 'username', value: username);
-  await storage.write(key: 'password', value: password);
-}
-
-Future<void> saveSecurityKeyToSecureStorage(String securitykey) async {
-  const storage = FlutterSecureStorage();
+Future<void> saveToSecureStorage(
+    String username, String password, String responseBody, String securitykey) async {
   DateTime dateTimeNow = DateTime.now().toUtc();
 
-  await storage.write(key: 'securitykey', value: securitykey);
-  await storage.write(key: 'securitykey_utc', value: dateTimeNow.toString());
+  await storageWrite(key: 'username', value: username);
+  await storageWrite(key: 'password', value: password);
+
+  await storageWrite(key: 'loginResponse', value: responseBody);
+
+  await storageWrite(key: 'securitykey', value: securitykey);
+  await storageWrite(key: 'securitykey_utc', value: dateTimeNow.toString());
 }

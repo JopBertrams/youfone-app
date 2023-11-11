@@ -9,7 +9,7 @@ class LoadingScreen extends StatefulWidget {
 }
 
 class _LoadingScreenState extends State<LoadingScreen> {
-  double loadingBallSize = 1;
+  double iconSize = 1;
 
   @override
   void initState() {
@@ -18,32 +18,25 @@ class _LoadingScreenState extends State<LoadingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: AnimatedAlign(
+    return AnimatedAlign(
+      duration: const Duration(milliseconds: 500),
+      alignment: Alignment.center,
+      child: TweenAnimationBuilder<double>(
         duration: const Duration(milliseconds: 500),
-        alignment: Alignment.center,
-        child: TweenAnimationBuilder<double>(
-          duration: const Duration(milliseconds: 500),
-          tween: Tween(begin: 0, end: loadingBallSize),
-          onEnd: () {
-            setState(() {
-              if (loadingBallSize == 1) {
-                loadingBallSize = 1.5;
-              } else {
-                loadingBallSize = 1;
-              }
-            });
-          },
-          builder: (_, value, __) => Transform.scale(
-            scale: value,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: youfoneColor.withOpacity(0.8),
-                shape: BoxShape.circle,
-              ),
+        tween: Tween(begin: 0, end: iconSize),
+        onEnd: () {
+          setState(() {
+            iconSize = iconSize == 1 ? 1.5 : 1;
+          });
+        },
+        builder: (_, value, __) => Transform.scale(
+          scale: value,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: youfoneColor.withOpacity(0.8),
+              shape: BoxShape.circle,
             ),
           ),
         ),
