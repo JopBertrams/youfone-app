@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:dio/dio.dart';
 import '../models/data.dart';
 import '../models/login_data.dart';
 import '../models/msisdn_data.dart';
 import '../storage.dart';
-import 'package:http/http.dart' as http;
+
+final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 5)));
 
 Future<bool> securitykeyExpired() async {
   // Check if the security key in secure storage is older than 1 hour.
@@ -50,28 +53,41 @@ Future<List<MsisdnResponse>> _getMsisdnData(LoginResponse loginResponse) async {
   List<MsisdnResponse> allMsisdnResponses = [];
 
   for (Customers customer in loginResponse.object.customers) {
-    Map<String, dynamic> requestBody = {
-      'request': {
-        'Msisdn': customer.msisdn,
+    try {
+      Map<String, dynamic> requestBody = {
+        'request': {
+          'Msisdn': customer.msisdn,
+        }
+      };
+
+      final response = await dio.postUri(youfoneDataUrl,
+          data: requestBody,
+          options: Options(headers: {
+            'Content-Type': 'application/json',
+            'Origin': 'https://my.youfone.nl',
+            'Referer': 'https://my.youfone.nl/',
+            'securitykey': securitykey!,
+            'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+          }));
+
+      MsisdnResponse msisdnResponse = MsisdnResponse.fromJson(response.data);
+      allMsisdnResponses.add(msisdnResponse);
+
+      // 1 second delay to prevent overloading the Youfone API.
+      await Future.delayed(const Duration(seconds: 1));
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout) {
+        Fluttertoast.showToast(
+            msg: 'Kon geen verbinding maken met Youfone, probeer het later opnieuw.',
+            toastLength: Toast.LENGTH_LONG);
+      } else {
+        Fluttertoast.showToast(
+            msg: 'Er is een fout opgetreden, probeer het later opnieuw.',
+            toastLength: Toast.LENGTH_LONG);
       }
-    };
-
-    final response = await http.post(youfoneDataUrl,
-        headers: <String, String>{
-          'Content-Type': 'application/json',
-          'Origin': 'https://my.youfone.nl',
-          'Referer': 'https://my.youfone.nl/',
-          'securitykey': securitykey!,
-          'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
-        },
-        body: jsonEncode(requestBody));
-
-    MsisdnResponse msisdnResponse = MsisdnResponse.fromJson(jsonDecode(response.body));
-    allMsisdnResponses.add(msisdnResponse);
-
-    // 1 second delay to prevent overloading the Youfone API.
-    await Future.delayed(const Duration(seconds: 1));
+      rethrow;
+    }
   }
 
   return allMsisdnResponses;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import './storage.dart';
 import './models/data.dart';
 import './login_screen/login_screen.dart';
@@ -66,15 +67,25 @@ class MyApp extends StatelessWidget {
 
     bool keyExpired = await securitykeyExpired();
     if (!keyExpired) {
-      return await getYoufoneData();
+      try {
+        return await getYoufoneData();
+      } on Exception {
+        return null;
+      }
     }
 
-    bool loginSuccessful = await youfoneLoginFromSecureStorage();
-    if (!loginSuccessful) {
+    bool? loginSuccessful = await youfoneLoginFromSecureStorage();
+    if (loginSuccessful == false) {
       // Login was not successful, remove credentials from secure storage and show the login screen.
-      // TODO: Show a message to the user that the login was not successful. (Snackbar)
+      Fluttertoast.showToast(
+          msg: 'Je bent uitgelogd, log opnieuw in om door te gaan. Heeft u een nieuw wachtwoord?',
+          toastLength: Toast.LENGTH_LONG);
       await storageDelete(key: 'username');
       await storageDelete(key: 'password');
+      return null;
+    } else if (loginSuccessful == null) {
+      // Could not connect to Youfone API.
+      // TODO: Go to a screen that shows a message that the user is maybe not connected to the internet.
       return null;
     }
 

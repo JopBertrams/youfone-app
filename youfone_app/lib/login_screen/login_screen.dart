@@ -249,10 +249,10 @@ class _LoginScreenState extends State<LoginScreen> {
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
 
-      bool loginSuccessful = await youfoneLogin(emailController.text, passwordController.text);
+      bool? loginSuccessful = await youfoneLogin(emailController.text, passwordController.text);
       if (!mounted) return;
 
-      if (loginSuccessful) {
+      if (loginSuccessful == true) {
         var data = await getYoufoneData();
         if (!mounted) return;
 
@@ -265,9 +265,14 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           (route) => false,
         );
-      } else {
+      } else if (loginSuccessful == false) {
         setState(() {
           showLoginError = true;
+          elementsOpacity = 1;
+          showLoadingScreen = false;
+        });
+      } else {
+        setState(() {
           elementsOpacity = 1;
           showLoadingScreen = false;
         });
